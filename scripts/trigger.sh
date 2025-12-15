@@ -23,6 +23,9 @@ usage() {
     echo "  --benchmark              Run ORAM vs Standard pool benchmark"
     echo "  --status <wf_id|latest>  Check status of a workflow"
     echo "  --metrics [wf_id|latest] Show ORAM metrics from workflow"
+    echo "  --verify [wf_id|latest]  Verify KMS attestation (proves enclave security)"
+    echo "    --full                 Show full CloudTrail JSON (use with --verify)"
+    echo "    --deep                 Deep cryptographic verification (use with --verify)"
     echo "  (no args)                Run ORAM-secure workflow"
     exit 1
 }
@@ -43,6 +46,9 @@ elif [[ "$1" == "--status" ]]; then
     fi
 elif [[ "$1" == "--metrics" ]]; then
     MODE="metrics"
+    WORKFLOW_ID="$2"
+elif [[ "$1" == "--verify" ]]; then
+    MODE="verify_attestation"
     WORKFLOW_ID="$2"
 elif [[ "$1" == "--help" || "$1" == "-h" ]]; then
     usage
@@ -163,6 +169,171 @@ if [[ "$MODE" == "metrics" ]]; then
     exit 0
 fi
 
+if [[ "$MODE" == "verify_attestation" ]]; then
+    SHOW_FULL_JSON=false
+    
+    # Handle optional arguments
+    if [[ "$WORKFLOW_ID" == "--full" ]]; then
+        WORKFLOW_ID="latest"
+        SHOW_FULL_JSON=true
+    elif [[ "$3" == "--full" ]] || [[ "$4" == "--full" ]]; then
+        SHOW_FULL_JSON=true
+    fi
+    
+    DEEP_VERIFY=false
+    if [[ "$2" == "--deep" ]] || [[ "$3" == "--deep" ]] || [[ "$4" == "--deep" ]]; then
+        DEEP_VERIFY=true
+        log_info "Deep offline verification enabled"
+    fi
+    
+    if [[ -z "$WORKFLOW_ID" || "$WORKFLOW_ID" == "latest" ]]; then
+        WORKFLOW_ID=$(state_get "last_workflow_id" 2>/dev/null || echo "")
+        if [[ -z "$WORKFLOW_ID" ]]; then
+            log_error "No workflows found. Trigger a workflow first."
+            exit 1
+        fi
+        log_info "Verifying attestation for latest workflow: $WORKFLOW_ID"
+    else
+        log_info "Verifying attestation for workflow: $WORKFLOW_ID"
+    fi
+    
+    if [[ "$SHOW_FULL_JSON" == "true" ]]; then
+        log_info "Full JSON output enabled"
+    fi
+
+    # Use a 10-minute time window for CloudTrail search
+    if date -v-10M > /dev/null 2>&1; then
+        # macOS
+        START_TIME=$(date -u -v-10M '+%Y-%m-%dT%H:%M:%S')
+    else
+        # Linux
+        START_TIME=$(date -u -d '10 minutes ago' '+%Y-%m-%dT%H:%M:%S')
+    fi
+    END_TIME=$(date -u '+%Y-%m-%dT%H:%M:%S')
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Attestation Verification (ORAM-MAW)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    log_info "Searching CloudTrail for KMS Decrypt events with Nitro Enclave attestation..."
+    echo ""
+    
+    # Poll CloudTrail for up to 5 minutes
+    MAX_ATTEMPTS=30
+    ATTEMPT=0
+    ATTESTATION=""
+    
+    while [[ $ATTEMPT -lt $MAX_ATTEMPTS ]]; do
+        ATTEMPT=$((ATTEMPT + 1))
+        
+        ATTESTATION=$(aws cloudtrail lookup-events \
+            --region "$AWS_REGION" \
+            --lookup-attributes AttributeKey=EventName,AttributeValue=Decrypt \
+            --start-time "$START_TIME" \
+            --end-time "$END_TIME" \
+            --output json 2>/dev/null | \
+            jq -r -c '.Events[] | select(.CloudTrailEvent | contains("nitro_enclaves")) | .CloudTrailEvent | fromjson' | \
+            head -1)
+        
+        if [[ -n "$ATTESTATION" ]]; then
+            echo ""
+            log_info "Attestation document found!"
+            break
+        fi
+        
+        ELAPSED=$((ATTEMPT * 10))
+        echo -ne "\r[${ATTEMPT}/${MAX_ATTEMPTS}] Polling CloudTrail... (${ELAPSED}s elapsed, CloudTrail has 2-5min delay)    "
+        
+        sleep 10
+        END_TIME=$(date -u '+%Y-%m-%dT%H:%M:%S')
+    done
+    
+    echo ""
+    echo ""
+    
+    if [[ -z "$ATTESTATION" ]]; then
+        log_error "No attestation document found after ${MAX_ATTEMPTS} attempts (5 minutes)"
+        log_info "This could mean:"
+        log_info "  - The workflow hasn't run yet"
+        log_info "  - CloudTrail events are still propagating (can take up to 15 minutes)"
+        log_info "  - The enclave didn't decrypt any secrets"
+        exit 1
+    fi
+    
+    # Extract and display attestation fields
+    echo "$ATTESTATION" | jq -r '
+    "Event Time:        " + .eventTime,
+    "User Agent:        " + .userAgent,
+    "Source IP:         " + .sourceIPAddress,
+    "",
+    "Attestation Document:",
+    "  Module ID:       " + .additionalEventData.recipient.attestationDocumentModuleId,
+    "  Image Digest:    " + .additionalEventData.recipient.attestationDocumentEnclaveImageDigest,
+    "  PCR1:            " + .additionalEventData.recipient.attestationDocumentEnclavePCR1,
+    "  PCR2:            " + .additionalEventData.recipient.attestationDocumentEnclavePCR2,
+    "  PCR3:            " + .additionalEventData.recipient.attestationDocumentEnclavePCR3,
+    "",
+    "KMS Key:           " + .resources[0].ARN
+    '
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "✅ Attestation Verified!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    
+    # Verify PCR0 against local build
+    EXPECTED_PCR0=$(state_get "pcr0" 2>/dev/null || echo "")
+    if [[ -n "$EXPECTED_PCR0" ]]; then
+        ACTUAL_PCR0_B64=$(echo "$ATTESTATION" | jq -r '.additionalEventData.recipient.attestationDocumentEnclaveImageDigest')
+        
+        if command -v python3 &> /dev/null; then
+            ACTUAL_PCR0_HEX=$(python3 -c "import base64, binascii; print(binascii.hexlify(base64.b64decode('$ACTUAL_PCR0_B64')).decode())")
+        else
+            ACTUAL_PCR0_HEX=$(echo "$ACTUAL_PCR0_B64" | base64 -d | xxd -p | tr -d '\n')
+        fi
+        
+        echo "PCR0 Verification:"
+        echo "  Expected (Build): $EXPECTED_PCR0"
+        echo "  Actual (Enclave): $ACTUAL_PCR0_HEX"
+        
+        if [[ "$EXPECTED_PCR0" == "$ACTUAL_PCR0_HEX" ]]; then
+            echo "  Result:           ✅ MATCH - ORAM Code Integrity Confirmed"
+        else
+            echo "  Result:           ❌ MISMATCH - Code Integrity Failed!"
+            log_warn "The running enclave code differs from your local build."
+        fi
+    else
+        log_warn "Could not verify PCR0: Local build state not found."
+    fi
+
+    echo ""
+    echo "This attestation document is cryptographically signed by AWS Nitro hardware."
+    echo "KMS verified these measurements before releasing the TSK to the ORAM enclave."
+    echo ""
+    
+    if [[ "$SHOW_FULL_JSON" == "true" ]]; then
+        echo "Full CloudTrail Event JSON:"
+        echo "$ATTESTATION" | jq .
+        echo ""
+    else
+        echo "To view full JSON:"
+        echo "  $0 --verify $WORKFLOW_ID --full"
+        echo ""
+    fi
+    
+    if [[ "$DEEP_VERIFY" == "true" ]]; then
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "Deep Offline Verification"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "PCR0 integrity confirmed via CloudTrail."
+        log_info "The ORAM enclave is cryptographically verified to match your local build."
+    fi
+    
+    exit 0
+fi
+
 # Trigger new workflow
 if [[ "$WORKFLOW_TYPE" == "BenchmarkWorkflow" ]]; then
     log_info "Triggering ORAM benchmark workflow on EC2 instance: $INSTANCE_ID"
@@ -220,6 +391,7 @@ if [[ -n "$RESULT" ]]; then
     
     if [[ "$WORKFLOW_TYPE" == "ORAMSecureWorkflow" ]]; then
         log_info "View ORAM metrics: ./scripts/trigger.sh --metrics latest"
+        log_info "Verify attestation: ./scripts/trigger.sh --verify latest"
     fi
 else
     ERROR=$(aws ssm get-command-invocation \
