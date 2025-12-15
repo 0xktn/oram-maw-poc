@@ -96,3 +96,4 @@ temp/
 .state/
 INSECURE_PASSWORD_TEXT
 *.b64
+encrypted-tsk.b64.local
