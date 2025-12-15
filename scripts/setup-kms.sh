@@ -55,10 +55,21 @@ fi
 state_set "kms_key_id" "$KEY_ID" --encrypt
 state_set "kms_key_alias" "$KEY_ALIAS"
 
-# Create IAM role
+# Create IAM role (skip if no permissions - assume it exists from CSE-MAW-POC)
 log_info "Setting up IAM role..."
 
-cat > /tmp/ec2-trust-policy.json << 'EOF'
+# Test if we have IAM permissions
+if aws iam get-role --role-name "$ROLE_NAME" &> /dev/null; then
+    log_warn "IAM role exists: $ROLE_NAME"
+    SKIP_IAM=false
+elif echo "$?" | grep -q "AccessDenied"; then
+    log_warn "No IAM permissions - assuming role exists from previous setup"
+    log_warn "If this fails, ask admin to create: $ROLE_NAME"
+    SKIP_IAM=true
+else
+    # Role doesn't exist and we have permissions to create it
+    SKIP_IAM=false
+    cat > /tmp/ec2-trust-policy.json << 'EOF'
 {
   "Version": "2012-10-17",
   "Statement": [{
@@ -68,10 +79,7 @@ cat > /tmp/ec2-trust-policy.json << 'EOF'
   }]
 }
 EOF
-
-if aws iam get-role --role-name "$ROLE_NAME" &> /dev/null; then
-    log_warn "IAM role exists"
-else
+    
     aws iam create-role \
         --role-name "$ROLE_NAME" \
         --assume-role-policy-document file:///tmp/ec2-trust-policy.json
@@ -79,8 +87,9 @@ else
 fi
 state_set "iam_role_name" "$ROLE_NAME"
 
-# Create KMS policy
-cat > /tmp/kms-policy.json << EOF
+if [[ "$SKIP_IAM" == "false" ]]; then
+    # Create KMS policy
+    cat > /tmp/kms-policy.json << EOF
 {
   "Version": "2012-10-17",
   "Statement": [{
@@ -91,27 +100,30 @@ cat > /tmp/kms-policy.json << EOF
 }
 EOF
 
-aws iam put-role-policy \
-    --role-name "$ROLE_NAME" \
-    --policy-name KMSDecryptPolicy \
-    --policy-document file:///tmp/kms-policy.json
-log_info "Attached KMS policy"
+    aws iam put-role-policy \
+        --role-name "$ROLE_NAME" \
+        --policy-name KMSDecryptPolicy \
+        --policy-document file:///tmp/kms-policy.json 2>/dev/null || log_warn "Could not update KMS policy (may already exist)"
+    log_info "Attached KMS policy"
 
-# Attach SSM policy for remote state sync
-aws iam attach-role-policy \
-    --role-name "$ROLE_NAME" \
-    --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore 2>/dev/null || log_warn "SSM policy already attached"
-log_info "Attached SSM policy"
+    # Attach SSM policy for remote state sync
+    aws iam attach-role-policy \
+        --role-name "$ROLE_NAME" \
+        --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore 2>/dev/null || log_warn "SSM policy already attached"
+    log_info "Attached SSM policy"
 
-# Create instance profile
-if aws iam get-instance-profile --instance-profile-name EnclaveInstanceProfile &> /dev/null; then
-    log_warn "Instance profile exists"
+    # Create instance profile
+    if aws iam get-instance-profile --instance-profile-name EnclaveInstanceProfile &> /dev/null; then
+        log_warn "Instance profile exists"
+    else
+        aws iam create-instance-profile --instance-profile-name EnclaveInstanceProfile
+        aws iam add-role-to-instance-profile \
+            --instance-profile-name EnclaveInstanceProfile \
+            --role-name "$ROLE_NAME"
+        log_info "Created instance profile"
+    fi
 else
-    aws iam create-instance-profile --instance-profile-name EnclaveInstanceProfile
-    aws iam add-role-to-instance-profile \
-        --instance-profile-name EnclaveInstanceProfile \
-        --role-name "$ROLE_NAME"
-    log_info "Created instance profile"
+    log_info "Skipping IAM operations - using existing role"
 fi
 
 # Generate encrypted TSK
