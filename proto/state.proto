@@ -1,0 +1,37 @@
+// Protocol Buffer Definitions for ORAM-MAW State Serialization
+// Defines state messages for compartmentalized storage
+
+syntax = "proto3";
+
+package oram_confidential;
+
+// State message exchanged between agents
+message AgentState {
+  string agent_id = 1;
+  int32 iteration = 2;
+  bytes data = 3;
+  int64 timestamp = 4;
+}
+
+// Encrypted container for state
+message EncryptedState {
+  bytes ciphertext = 1;
+  bytes nonce = 2;
+  bytes tag = 3;
+}
+
+// ORAM access metadata (for benchmarking)
+message ORAMMetrics {
+  int32 access_count = 1;
+  int32 path_length = 2;
+  int32 stash_size = 3;
+  string pool_type = 4;  // "oram" or "standard"
+}
+
+// ACB routing result
+message ACBRouteResult {
+  string key = 1;
+  string routed_to = 2;  // "oram" or "standard"
+  string reason = 3;
+  ORAMMetrics metrics = 4;
+}
