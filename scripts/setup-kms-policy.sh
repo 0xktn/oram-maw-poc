@@ -30,7 +30,7 @@ echo "PCR0: $PCR0"
 cat > /tmp/kms-key-policy.json << EOF
 {
   "Version": "2012-10-17",
-  "Id": "confidential-workflow-key-policy",
+  "Id": "oram-maw-key-policy",
   "Statement": [
     {
       "Sid": "Enable IAM User Permissions",

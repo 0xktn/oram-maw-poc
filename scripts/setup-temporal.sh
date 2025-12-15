@@ -15,7 +15,7 @@ NC='\033[0m'
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 
-NAMESPACE="confidential-workflow-poc"
+NAMESPACE="oram-maw-poc"
 TEMPORAL_DIR="./temporal-docker"
 
 # Check Docker
@@ -64,7 +64,7 @@ mkdir -p ./config
 cat > ./config/temporal.env << EOF
 TEMPORAL_HOST=localhost:7233
 TEMPORAL_NAMESPACE=$NAMESPACE
-TEMPORAL_TASK_QUEUE=confidential-workflow-queue
+TEMPORAL_TASK_QUEUE=oram-maw-queue
 EOF
 
 echo ""

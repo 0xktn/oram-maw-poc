@@ -17,7 +17,7 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 
 # Get config from state
 AWS_REGION=$(state_get "aws_region" 2>/dev/null || echo "ap-southeast-1")
-KEY_ALIAS="confidential-workflow-tsk"
+KEY_ALIAS="oram-maw-tsk"
 ROLE_NAME="EnclaveInstanceRole"
 
 # Get AWS account ID

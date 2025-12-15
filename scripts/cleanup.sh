@@ -81,7 +81,7 @@ log_info "IAM role deleted"
 # 5. Delete KMS key
 log_info "Deleting KMS key..."
 KMS_KEY_ID=$(state_get "kms_key_id" 2>/dev/null || echo "")
-KMS_ALIAS="alias/confidential-workflow-tsk"
+KMS_ALIAS="alias/oram-maw-tsk"
 
 if [[ -n "$KMS_KEY_ID" ]]; then
     # Delete alias first

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Confidential Multi-Agent Workflow - Main Setup Script
+# ORAM-MAW POC - Main Setup Script
 #
 # Usage:
 #   ./setup.sh [OPTIONS]
@@ -48,7 +48,7 @@ RESET_STATE=false
 # Parse arguments
 show_help() {
     cat << EOF
-Confidential Multi-Agent Workflow - Setup Script
+ORAM-MAW POC - Setup Script
 
 Usage: $0 [OPTIONS]
 
@@ -157,7 +157,7 @@ fi
 # Display status
 echo ""
 echo "┌─────────────────────────────────────────────┐"
-echo "│  Confidential Multi-Agent Workflow Setup   │"
+echo "│         ORAM-MAW POC Setup                  │"
 echo "└─────────────────────────────────────────────┘"
 echo ""
 echo "Configuration:"
@@ -449,7 +449,7 @@ echo "Instance:   $INSTANCE_IP"
 echo "PCR0:       ${PCR0:0:32}..."
 echo "Enclave:    ${ENCLAVE_ID}"
 echo ""
-echo "Your confidential workflow is running!"
+echo "Your ORAM-protected workflow is running!"
 echo ""
 echo "Next:"
 echo "  - View status:  ./scripts/setup.sh --remote-status"
