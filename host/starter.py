@@ -70,8 +70,10 @@ def load_config():
     session = boto3.Session(region_name=os.getenv('AWS_REGION', 'ap-southeast-1'))
     credentials = session.get_credentials()
     
-    # Load encrypted TSK
-    tsk_path = os.getenv("ENCRYPTED_TSK_PATH", "encrypted-tsk.b64")
+    # Load encrypted TSK - use absolute path
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    tsk_path = os.getenv("ENCRYPTED_TSK_PATH", os.path.join(project_root, "encrypted-tsk.b64"))
     with open(tsk_path, 'r') as f:
         encrypted_tsk = f.read().strip()
     
