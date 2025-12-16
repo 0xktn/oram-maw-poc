@@ -417,7 +417,6 @@ if [[ -n "$RESULT" ]]; then
     fi
     
     echo ""
-    echo -e "${BLUE}=== Workflow Started ===${NC}"
     
     if [[ "$SHOW_METRICS" == "true" ]]; then
         # Extract and format metrics

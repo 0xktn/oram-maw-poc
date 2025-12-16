@@ -5,13 +5,17 @@ Triggers ORAM-protected workflows for demonstration.
 """
 
 import asyncio
-import os
 import sys
+import os
 import uuid
 import json
+import logging
 from temporalio.client import Client
 
 from workflows import ORAMSecureWorkflow, BenchmarkWorkflow
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 TEMPORAL_HOST = os.getenv("TEMPORAL_HOST", "localhost:7233")
@@ -25,7 +29,7 @@ async def run_oram_workflow(config: dict):
     
     workflow_id = f"oram-secure-{uuid.uuid4().hex[:8]}"
     
-    print(f"[STARTER] Starting ORAMSecureWorkflow: {workflow_id}")
+    logger.info("Starting workflow...")
     
     result = await client.execute_workflow(
         ORAMSecureWorkflow.run,
@@ -34,8 +38,7 @@ async def run_oram_workflow(config: dict):
         task_queue=TASK_QUEUE
     )
     
-    print(f"[STARTER] Workflow completed!")
-    print(f"[STARTER] Result: {result}")
+    logger.info(f"Workflow Result: {result}")
     
     return result
 
