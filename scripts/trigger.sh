@@ -149,28 +149,40 @@ if [[ "$MODE" == "metrics" ]]; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "ORAM Metrics"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
     
-    # Parse the result JSON which contains acb_metrics
-    echo "$RESULT" | jq -r '
-    "ORAM Pool:",
-    "  Entries: " + (.acb_metrics.oram_pool.entries | tostring),
-    "  Access Count: " + (.acb_metrics.oram_pool.access_count | tostring),
-    "  Tree Height: " + (.acb_metrics.oram_pool.tree_height | tostring),
-    "  Num Buckets: " + (.acb_metrics.oram_pool.num_buckets | tostring),
-    "  Stash Size: " + (.acb_metrics.oram_pool.stash_size | tostring),
-    "",
-    "Standard Pool:",
-    "  Entries: " + (.acb_metrics.standard_pool.entries | tostring),
-    "  Access Count: " + (.acb_metrics.standard_pool.access_count | tostring),
-    "  Overhead: " + .acb_metrics.standard_pool.overhead,
-    "",
-    "Routing:",
-    "  Total Routes: " + (.acb_metrics.routing.total_routes | tostring),
-    "  ORAM Routes: " + (.acb_metrics.routing.oram_routes | tostring),
-    "  Standard Routes: " + (.acb_metrics.routing.standard_routes | tostring),
-    "  ORAM Percentage: " + (.acb_metrics.routing.oram_percentage | tostring) + "%"
-    '
+    # Check if result contains metrics
+    if echo "$RESULT" | jq -e '.acb_metrics' > /dev/null 2>&1; then
+        # Parse and display metrics
+        echo "$RESULT" | jq -r '
+        "ORAM Pool:",
+        "  Entries: " + (.acb_metrics.oram_pool.entries | tostring),
+        "  Access Count: " + (.acb_metrics.oram_pool.access_count | tostring),
+        "  Tree Height: " + (.acb_metrics.oram_pool.tree_height | tostring),
+        "  Num Buckets: " + (.acb_metrics.oram_pool.num_buckets | tostring),
+        "  Stash Size: " + (.acb_metrics.oram_pool.stash_size | tostring),
+        "",
+        "Standard Pool:",
+        "  Entries: " + (.acb_metrics.standard_pool.entries | tostring),
+        "  Access Count: " + (.acb_metrics.standard_pool.access_count | tostring),
+        "  Overhead: " + .acb_metrics.standard_pool.overhead,
+        "",
+        "Routing:",
+        "  Total Routes: " + (.acb_metrics.routing.total_routes | tostring),
+        "  ORAM Routes: " + (.acb_metrics.routing.oram_routes | tostring),
+        "  Standard Routes: " + (.acb_metrics.routing.standard_routes | tostring),
+        "  ORAM Percentage: " + (.acb_metrics.routing.oram_percentage | tostring) + "%"
+        '
+    else
+        echo "Metrics are displayed in the workflow trigger output."
+        echo ""
+        echo "Run a new workflow to see metrics:"
+        echo "  ./scripts/trigger.sh"
+        echo ""
+        echo "The metrics will be shown in the JSON result under 'acb_metrics'."
+    fi
     
+    echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     
