@@ -380,8 +380,15 @@ RESULT=$(aws ssm get-command-invocation \
     --output text 2>/dev/null || echo "")
 
 if [[ -n "$RESULT" ]]; then
-    # Save workflow ID to state for quick lookup
-    state_set "last_workflow_id" "$WORKFLOW_ID"
+    # Extract the actual workflow ID from the starter output
+    ACTUAL_WORKFLOW_ID=$(echo "$RESULT" | grep -o 'oram-[a-z]*-[a-z0-9]*' | head -1)
+    
+    if [[ -n "$ACTUAL_WORKFLOW_ID" ]]; then
+        state_set "last_workflow_id" "$ACTUAL_WORKFLOW_ID"
+    else
+        # Fallback to timestamp-based ID if extraction fails
+        state_set "last_workflow_id" "$WORKFLOW_ID"
+    fi
     
     echo ""
     echo -e "${BLUE}=== Workflow Started ===${NC}"
@@ -392,7 +399,7 @@ if [[ -n "$RESULT" ]]; then
         echo "$RESULT"
     fi
     echo ""
-    log_info "Check status with: ${YELLOW}./scripts/trigger.sh --status $WORKFLOW_ID${NC}"
+    log_info "Check status with: ${YELLOW}./scripts/trigger.sh --status ${ACTUAL_WORKFLOW_ID:-$WORKFLOW_ID}${NC}"
     log_info "Or use: ${YELLOW}./scripts/trigger.sh --status latest${NC}"
     log_info "View ORAM metrics: ${YELLOW}./scripts/trigger.sh --metrics latest${NC}"
     log_info "Verify attestation: ${YELLOW}./scripts/trigger.sh --verify latest${NC}"
