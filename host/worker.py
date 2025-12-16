@@ -21,6 +21,7 @@ from workflows import ORAMSecureWorkflow, BenchmarkWorkflow
 
 
 TEMPORAL_HOST = os.getenv("TEMPORAL_HOST", "localhost:7233")
+TEMPORAL_NAMESPACE = os.getenv("TEMPORAL_NAMESPACE", "confidential-workflow-poc")
 TASK_QUEUE = "oram-maw-queue"
 
 
@@ -28,7 +29,7 @@ async def main():
     """Start the Temporal worker."""
     print(f"[WORKER] Connecting to Temporal at {TEMPORAL_HOST}...")
     
-    client = await Client.connect(TEMPORAL_HOST)
+    client = await Client.connect(TEMPORAL_HOST, namespace=TEMPORAL_NAMESPACE)
     
     print(f"[WORKER] Starting worker on queue: {TASK_QUEUE}")
     print("[WORKER] O2RAM-enabled workflows ready")

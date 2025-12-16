@@ -14,12 +14,13 @@ from workflows import ORAMSecureWorkflow, BenchmarkWorkflow
 
 
 TEMPORAL_HOST = os.getenv("TEMPORAL_HOST", "localhost:7233")
+TEMPORAL_NAMESPACE = os.getenv("TEMPORAL_NAMESPACE", "confidential-workflow-poc")
 TASK_QUEUE = "oram-maw-queue"
 
 
 async def run_oram_workflow(config: dict):
     """Run the main ORAM-secure workflow."""
-    client = await Client.connect(TEMPORAL_HOST)
+    client = await Client.connect(TEMPORAL_HOST, namespace=TEMPORAL_NAMESPACE)
     
     workflow_id = f"oram-secure-{uuid.uuid4().hex[:8]}"
     
@@ -40,7 +41,7 @@ async def run_oram_workflow(config: dict):
 
 async def run_benchmark(config: dict):
     """Run the benchmark workflow."""
-    client = await Client.connect(TEMPORAL_HOST)
+    client = await Client.connect(TEMPORAL_HOST, namespace=TEMPORAL_NAMESPACE)
     
     workflow_id = f"oram-benchmark-{uuid.uuid4().hex[:8]}"
     
