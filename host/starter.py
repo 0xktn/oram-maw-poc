@@ -82,8 +82,8 @@ def load_config():
         'temporal_host': os.getenv('TEMPORAL_HOST', 'localhost:7233'),
         'temporal_namespace': os.getenv('TEMPORAL_NAMESPACE', 'confidential-workflow-poc'),
         'aws_region': os.getenv('AWS_REGION', 'ap-southeast-1'),
-        'aws_access_key': credentials.access_key,
-        'aws_secret_key': credentials.secret_key,
+        'aws_access_key_id': credentials.access_key,
+        'aws_secret_access_key': credentials.secret_key,
         'aws_session_token': credentials.token,
         "encrypted_tsk": encrypted_tsk
     }
