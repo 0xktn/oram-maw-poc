@@ -34,6 +34,7 @@ usage() {
 MODE="trigger"
 WORKFLOW_ID=""
 WORKFLOW_TYPE="ORAMSecureWorkflow"
+SHOW_METRICS=false
 
 if [[ "$1" == "--benchmark" ]]; then
     MODE="trigger"
@@ -45,9 +46,14 @@ elif [[ "$1" == "--status" ]]; then
         usage
     fi
 elif [[ "$1" == "--metrics" ]]; then
-    MODE="metrics"
-    WORKFLOW_ID="$2"
-elif [[ "$1" == "--verify" ]]; then
+    if [[ "$2" == "latest" || -z "$2" ]]; then
+        MODE="trigger"
+        SHOW_METRICS=true
+    else
+        MODE="metrics"
+        WORKFLOW_ID="$2"
+    fi
+elif [[ "$1" == "--verify" || "$1" == "--verify-cloudtrail" ]]; then
     MODE="verify_attestation"
     WORKFLOW_ID="$2"
 elif [[ "$1" == "--help" || "$1" == "-h" ]]; then
@@ -412,7 +418,57 @@ if [[ -n "$RESULT" ]]; then
     
     echo ""
     echo -e "${BLUE}=== Workflow Started ===${NC}"
-    echo "$RESULT"
+    
+    if [[ "$SHOW_METRICS" == "true" ]]; then
+        # Extract and format metrics
+        echo "$RESULT" | python3 -c "
+import sys, json
+try:
+    data = json.loads(sys.stdin.read())
+    result_str = data
+    # Try to parse if it's a string containing JSON
+    if isinstance(result_str, str):
+        for line in result_str.split('\n'):
+            if line.strip().startswith('{'):
+                result_str = json.loads(line)
+                break
+    
+    if isinstance(result_str, dict) and 'acb_metrics' in result_str:
+        metrics = result_str['acb_metrics']
+        print('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        print('ORAM Metrics')
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
+        
+        oram = metrics.get('oram_pool', {})
+        print('ORAM Pool:')
+        print(f'  Entries: {oram.get(\"entries\")}')
+        print(f'  Access Count: {oram.get(\"access_count\")}')
+        print(f'  Tree Height: {oram.get(\"tree_height\")}')
+        print(f'  Num Buckets: {oram.get(\"num_buckets\")}')
+        print(f'  Stash Size: {oram.get(\"stash_size\")}')
+        
+        std = metrics.get('standard_pool', {})
+        print('\nStandard Pool:')
+        print(f'  Entries: {std.get(\"entries\")}')
+        print(f'  Access Count: {std.get(\"access_count\")}')
+        print(f'  Overhead: {std.get(\"overhead\")}')
+        
+        routing = metrics.get('routing', {})
+        print('\nRouting:')
+        print(f'  Total Routes: {routing.get(\"total_routes\")}')
+        print(f'  ORAM Routes: {routing.get(\"oram_routes\")}')
+        print(f'  Standard Routes: {routing.get(\"standard_routes\")}')
+        print(f'  ORAM Percentage: {routing.get(\"oram_percentage\")}%')
+        
+        print('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    else:
+        print('No metrics found in result')
+except Exception as e:
+    print(f'Error parsing metrics: {e}')
+" || echo "$RESULT"
+    else
+        echo "$RESULT"
+    fi
     echo ""
 else
     ERROR=$(aws ssm get-command-invocation \
