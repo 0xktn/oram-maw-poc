@@ -35,8 +35,7 @@ async def run_oram_workflow(config: dict):
     )
     
     print(f"[STARTER] Workflow completed!")
-    print(f"[STARTER] Result:")
-    print(json.dumps(result, indent=2))
+    print(f"[STARTER] Result: {result}")
     
     return result
 
