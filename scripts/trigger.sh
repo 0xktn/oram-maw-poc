@@ -72,7 +72,7 @@ if [[ "$MODE" == "status" ]]; then
         --region "$AWS_REGION" \
         --instance-ids "$INSTANCE_ID" \
         --document-name "AWS-RunShellScript" \
-        --parameters "commands=[\"docker exec temporal temporal --address temporal:7233 workflow describe --namespace oram-maw-poc --workflow-id $WORKFLOW_ID 2>&1\"]" \
+        --parameters "commands=[\"docker exec temporal temporal --address temporal:7233 workflow describe --namespace confidential-workflow-poc --workflow-id $WORKFLOW_ID 2>&1\"]" \
         --query 'Command.CommandId' \
         --output text 2>/dev/null)
     
@@ -120,7 +120,7 @@ if [[ "$MODE" == "metrics" ]]; then
         --region "$AWS_REGION" \
         --instance-ids "$INSTANCE_ID" \
         --document-name "AWS-RunShellScript" \
-        --parameters "commands=[\"docker exec temporal temporal --address temporal:7233 workflow show --namespace oram-maw-poc --workflow-id $WORKFLOW_ID --output json 2>&1 | jq -r '.result'\"]" \
+        --parameters "commands=[\"docker exec temporal temporal --address temporal:7233 workflow show --namespace confidential-workflow-poc --workflow-id $WORKFLOW_ID --output json 2>&1 | jq -r '.result'\"]" \
         --query 'Command.CommandId' \
         --output text 2>/dev/null)
     
