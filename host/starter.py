@@ -71,7 +71,7 @@ def load_config():
     credentials = session.get_credentials()
     
     # Load encrypted TSK
-    tsk_path = os.getenv("ENCRYPTED_TSK_PATH", "encrypted-tsk.b64.local")
+    tsk_path = os.getenv("ENCRYPTED_TSK_PATH", "encrypted-tsk.b64")
     with open(tsk_path, 'r') as f:
         encrypted_tsk = f.read().strip()
     
