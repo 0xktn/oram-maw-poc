@@ -419,21 +419,19 @@ if [[ -n "$RESULT" ]]; then
     echo ""
     
     if [[ "$SHOW_METRICS" == "true" ]]; then
-        # Extract and format metrics
-        echo "$RESULT" | python3 -c "
-import sys, json
+        # Extract the dict from the logger output
+        RESULT_DICT=$(echo "$RESULT" | grep "Workflow Result:" | sed 's/.*Workflow Result: //')
+        
+        if [[ -n "$RESULT_DICT" ]]; then
+            # Parse and format metrics
+            echo "$RESULT_DICT" | python3 -c "
+import sys, json, ast
 try:
-    data = json.loads(sys.stdin.read())
-    result_str = data
-    # Try to parse if it's a string containing JSON
-    if isinstance(result_str, str):
-        for line in result_str.split('\n'):
-            if line.strip().startswith('{'):
-                result_str = json.loads(line)
-                break
+    # Parse Python dict string to actual dict
+    result = ast.literal_eval(sys.stdin.read().strip())
     
-    if isinstance(result_str, dict) and 'acb_metrics' in result_str:
-        metrics = result_str['acb_metrics']
+    if 'acb_metrics' in result:
+        metrics = result['acb_metrics']
         print('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
         print('ORAM Metrics')
         print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
@@ -464,7 +462,12 @@ try:
         print('No metrics found in result')
 except Exception as e:
     print(f'Error parsing metrics: {e}')
-" || echo "$RESULT"
+    import traceback
+    traceback.print_exc()
+"
+        else
+            echo "$RESULT"
+        fi
     else
         echo "$RESULT"
     fi
