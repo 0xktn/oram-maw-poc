@@ -39,7 +39,7 @@ if [[ -n "$INSTANCE_ID" ]]; then
         --instance-ids "$INSTANCE_ID" \
         --document-name "AWS-RunShellScript" \
         --parameters 'commands=["nitro-cli terminate-enclave --all || true", "pkill vsock-proxy || true", "pkill -f host/worker.py || true", "docker compose -f /home/ec2-user/temporal-docker/docker-compose.yml down 2>/dev/null || true"]' \
-        2>/dev/null || true
+        > /dev/null 2>&1 || true
     sleep 5
     log_info "Remote processes stopped"
 fi
@@ -91,7 +91,7 @@ if [[ -n "$KMS_KEY_ID" ]]; then
     aws kms schedule-key-deletion \
         --region "$AWS_REGION" \
         --key-id "$KMS_KEY_ID" \
-        --pending-window-in-days 7 2>/dev/null || true
+        --pending-window-in-days 7 > /dev/null 2>&1 || true
     log_info "KMS key scheduled for deletion (7 days)"
 else
     log_info "No KMS key found in state"
@@ -105,7 +105,7 @@ SG_ID=$(aws ec2 describe-security-groups \
     --query 'SecurityGroups[0].GroupId' \
     --output text 2>/dev/null || echo "None")
 if [[ "$SG_ID" != "None" ]] && [[ -n "$SG_ID" ]]; then
-    aws ec2 delete-security-group --region "$AWS_REGION" --group-id "$SG_ID" 2>/dev/null || true
+    aws ec2 delete-security-group --region "$AWS_REGION" --group-id "$SG_ID" > /dev/null 2>&1 || true
     log_info "Security group deleted: $SG_ID"
 else
     log_info "No security group found"
@@ -113,7 +113,7 @@ fi
 
 # 6. Delete key pair
 log_info "Deleting key pair..."
-aws ec2 delete-key-pair --region "$AWS_REGION" --key-name "$KEY_NAME" 2>/dev/null || true
+aws ec2 delete-key-pair --region "$AWS_REGION" --key-name "$KEY_NAME" > /dev/null 2>&1 || true
 if [[ -f "$HOME/.ssh/${KEY_NAME}.pem" ]]; then
     rm -f "$HOME/.ssh/${KEY_NAME}.pem" 2>/dev/null || true
     log_info "Deleted local key file"

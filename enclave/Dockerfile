@@ -1,14 +1,15 @@
-# ORAM-MAW Enclave Dockerfile
-# Minimal Amazon Linux 2023 image with O2RAM support
+# Use pre-built kmstool image from GHCR
+FROM ghcr.io/0xktn/kmstool:v0.4.3 AS builder
 
-FROM amazonlinux:2023
+# Final stage: Amazon Linux 2023 runtime
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023
 
-# Install Python and dependencies
-RUN dnf install -y python3.11 python3.11-pip && dnf clean all
+# Install runtime dependencies
+RUN dnf install -y python3.11 python3.11-pip findutils && dnf clean all
 
-# Copy KMS attestation tools (will be added during build)
-COPY kmstool_enclave_cli /usr/bin/
-COPY libnsm.so /usr/lib64/
+# Copy built artifacts from pre-built image
+COPY --from=builder /usr/lib64/libnsm.so /usr/lib64/libnsm.so
+COPY --from=builder /usr/bin/kmstool_enclave_cli /usr/bin/kmstool_enclave_cli
 
 # Setup application directory
 WORKDIR /app

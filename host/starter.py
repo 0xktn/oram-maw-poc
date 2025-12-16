@@ -62,13 +62,13 @@ async def run_benchmark(config: dict):
     return result
 
 
-def load_config() -> dict:
-    """Load configuration from environment."""
+def load_config():
+    """Load configuration from environment and AWS"""
     import boto3
     
-    # Get temporary credentials
-    sts = boto3.client('sts')
-    credentials = sts.get_session_token()['Credentials']
+    # Use EC2 instance profile credentials directly
+    session = boto3.Session(region_name=os.getenv('AWS_REGION', 'ap-southeast-1'))
+    credentials = session.get_credentials()
     
     # Load encrypted TSK
     tsk_path = os.getenv("ENCRYPTED_TSK_PATH", "encrypted-tsk.b64.local")
@@ -76,9 +76,12 @@ def load_config() -> dict:
         encrypted_tsk = f.read().strip()
     
     return {
-        "aws_access_key_id": credentials['AccessKeyId'],
-        "aws_secret_access_key": credentials['SecretAccessKey'],
-        "aws_session_token": credentials['SessionToken'],
+        'temporal_host': os.getenv('TEMPORAL_HOST', 'localhost:7233'),
+        'temporal_namespace': os.getenv('TEMPORAL_NAMESPACE', 'confidential-workflow-poc'),
+        'aws_region': os.getenv('AWS_REGION', 'ap-southeast-1'),
+        'aws_access_key': credentials.access_key,
+        'aws_secret_key': credentials.secret_key,
+        'aws_session_token': credentials.token,
         "encrypted_tsk": encrypted_tsk
     }
 
