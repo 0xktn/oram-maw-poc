@@ -380,19 +380,22 @@ RESULT=$(aws ssm get-command-invocation \
     --output text 2>/dev/null || echo "")
 
 if [[ -n "$RESULT" ]]; then
+    # Save workflow ID to state for quick lookup
     state_set "last_workflow_id" "$WORKFLOW_ID"
     
     echo ""
-    echo "=== Workflow Started ==="
-    echo "$RESULT"
-    echo ""
-    log_info "Check status with: ./scripts/trigger.sh --status $WORKFLOW_ID"
-    log_info "Or use: ./scripts/trigger.sh --status latest"
-    
-    if [[ "$WORKFLOW_TYPE" == "ORAMSecureWorkflow" ]]; then
-        log_info "View ORAM metrics: ./scripts/trigger.sh --metrics latest"
-        log_info "Verify attestation: ./scripts/trigger.sh --verify latest"
+    echo -e "${BLUE}=== Workflow Started ===${NC}"
+    # Pretty print the result if it's JSON
+    if echo "$RESULT" | python3 -c "import sys, json; json.load(sys.stdin)" 2>/dev/null; then
+        echo "$RESULT" | python3 -m json.tool
+    else
+        echo "$RESULT"
     fi
+    echo ""
+    log_info "Check status with: ${YELLOW}./scripts/trigger.sh --status $WORKFLOW_ID${NC}"
+    log_info "Or use: ${YELLOW}./scripts/trigger.sh --status latest${NC}"
+    log_info "View ORAM metrics: ${YELLOW}./scripts/trigger.sh --metrics latest${NC}"
+    log_info "Verify attestation: ${YELLOW}./scripts/trigger.sh --verify latest${NC}"
 else
     ERROR=$(aws ssm get-command-invocation \
         --region "$AWS_REGION" \
