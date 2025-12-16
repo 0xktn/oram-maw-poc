@@ -8,6 +8,7 @@ import asyncio
 import os
 import sys
 import uuid
+import json
 from temporalio.client import Client
 
 from workflows import ORAMSecureWorkflow, BenchmarkWorkflow
@@ -34,7 +35,8 @@ async def run_oram_workflow(config: dict):
     )
     
     print(f"[STARTER] Workflow completed!")
-    print(f"[STARTER] Result: {result}")
+    print(f"[STARTER] Result:")
+    print(json.dumps(result, indent=2))
     
     return result
 
